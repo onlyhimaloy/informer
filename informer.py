@@ -1,15 +1,16 @@
 
 #This tool has developed to get information of server owner via gmail.
 
-from __future__ import print_function
-import httplib2
-import os
-
 from apiclient import discovery
-from oauth2client import client
-from oauth2client import tools
-from oauth2client.file import Storage
-
+from apiclient import errors
+from httplib2 import Http
+from oauth2client import file, client, tools
+import base64
+import re
+import time
+import dateutil.parser as parser
+from datetime import datetime
+import datetime
 try:
     import argparse
     flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
@@ -22,54 +23,78 @@ SCOPES = 'https://www.googleapis.com/auth/gmail.readonly'
 CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'Gmail API Python Quickstart'
 
+store = file.Storage('storage.json')
+creds = store.get()
+if not creds or creds.invalid:
+    flow = client.flow_from_clientsecrets('client_secret.json', SCOPES)
+    creds = tools.run_flow(flow, store)
+GMAIL = discovery.build('gmail', 'v1', http=creds.authorize(Http()))
 
-def get_credentials():
-    """Gets valid user credentials from storage.
+user_id = 'me'
+label_id_one = 'INBOX'
+label_id_two = 'UNREAD'
 
-    If nothing has been stored, or if the stored credentials are invalid,
-    the OAuth2 flow is completed to obtain the new credentials.
+# Getting all the unread messages from Inbox
+# labelIds can be changed accordingly
+unread_msgs = GMAIL.users().messages().list(userId='me', labelIds=[label_id_one, label_id_two]).execute()
 
-    Returns:
-        Credentials, the obtained credential.
-    """
-    home_dir = os.path.expanduser('~')
-    credential_dir = os.path.join(home_dir, '.credentials')
-    if not os.path.exists(credential_dir):
-        os.makedirs(credential_dir)
-    credential_path = os.path.join(credential_dir,'gmail-python-quickstart.json')
+# We get a dictonary. Now reading values for the key 'messages'
+mssg_list = unread_msgs['messages']
 
-    store = Storage(credential_path)
-    credentials = store.get()
-    if not credentials or credentials.invalid:
-        flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
-        flow.user_agent = APPLICATION_NAME
-        if flags:
-            credentials = tools.run_flow(flow, store, flags)
-        else: # Needed only for compatibility with Python 2.6
-            credentials = tools.run(flow, store)
-        print('Storing credentials to ' + credential_path)
-    return credentials
+print("Total unread messages in inbox: ", str(len(mssg_list)))
 
-def main():
-    """Shows basic usage of the Gmail API.
+final_list = []
 
-    Creates a Gmail API service object and outputs a list of label names
-    of the user's Gmail account.
-    """
-    credentials = get_credentials()
-    http = credentials.authorize(httplib2.Http())
-    service = discovery.build('gmail', 'v1', http=http)
+for mssg in mssg_list:
+    temp_dict = {}
+    m_id = mssg['id']  # get id of individual message
+    message = GMAIL.users().messages().get(userId=user_id, id=m_id).execute()  # fetch the message using API
+    payld = message['payload']  # get payload of the message
+    headr = payld['headers']  # get header of the payload
 
-    results = service.users().labels().list(userId='me').execute()
-    labels = results.get('labels', [])
+    for one in headr:  # getting the Subject
+        if one['name'] == 'Subject':
+            msg_subject = one['value']
+            temp_dict['Subject'] = msg_subject
+        else:
+            pass
 
-    if not labels:
-        print('No labels found.')
-    else:
-      print('Labels:')
-      for label in labels:
-        print(label['name'])
+    for two in headr:  # getting the date
+        if two['name'] == 'Date':
+            msg_date = two['value']
+            date_parse = (parser.parse(msg_date))
+            m_date = (date_parse.date())
+            temp_dict['Date'] = str(m_date)
+        else:
+            pass
 
+    for three in headr:  # getting the Sender
+        if three['name'] == 'From':
+            msg_from = three['value']
+            temp_dict['Sender'] = msg_from
+        else:
+            pass
 
-if __name__ == '__main__':
-    main()
+    temp_dict['Snippet'] = message['snippet']  # fetching message snippet
+
+    try:
+
+        # Fetching message body
+        mssg_parts = payld['parts']  # fetching the message parts
+        part_one = mssg_parts[0]  # fetching first element of the part
+        part_body = part_one['body']  # fetching body of the message
+        part_data = part_body['data']  # fetching data from the body
+        clean_one = part_data.replace("-", "+")  # decoding from Base64 to UTF-8
+        clean_one = clean_one.replace("_", "/")  # decoding from Base64 to UTF-8
+        clean_two = base64.b64decode(bytes(clean_one, 'UTF-8'))  # decoding from Base64 to UTF-8
+        soup = BeautifulSoup(clean_two, "lxml")
+        mssg_body = soup.body()
+        # mssg_body is a readible form of message body
+        # depending on the end user's requirements, it can be further cleaned
+        # using regex, beautiful soup, or any other method
+        temp_dict['Message_body'] = mssg_body
+
+    except:
+        pass
+
+    print(temp_dict)
