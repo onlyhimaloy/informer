@@ -14,10 +14,10 @@ while True:
 
     if largest is None :
         largest = num
-    elif num > largest :
-        print("Minimum is ", smallest)
+    elif largest > num :
+        print("MAX is ", largest)
     if smallest is None :
          smallest = num
-    elif num < smallest :
-        print("Maximum is ", largest)
+    elif smallest <num  :
+        print("MIN is ", smallest)
 
