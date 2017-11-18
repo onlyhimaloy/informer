@@ -29,6 +29,6 @@ for comments in table:
     val = int(num)
     lst.append(val)
 
-print(lst)
+#print(lst)
 total = sum(lst)
 print(total)
