@@ -8,14 +8,15 @@ data = uh.read()
 #print(data.decode())
 
 tree = ET.fromstring(data)
-
-#counts = tree.findall('.//count')
-comment = tree.findall('comments/comment')
+comment = tree.findall('.//count')
+#comment = tree.findall('comments/comment')
 
 lst =list()
+
 for item in comment:
-     num = item.find('count').text
-     number =int(num)
+     #print(item)
+     #num = item.find('count').text
+     number =int(item)
      lst.append(number)
 
 total =sum(lst)
