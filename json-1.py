@@ -13,7 +13,7 @@ print('User count:', len(info))
 
 lst =list()
 #print(info)
-for item in info['comments']: #info is a dictionary and comments is a key of another dictionary of this dictionary 
+for item in info['comments']: #info is a dictionary and comments is a key of another dictionary of this dictionary
     #print(item['name'])
     num = (item['count'])
     num = int(num)
